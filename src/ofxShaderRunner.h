@@ -16,8 +16,10 @@ public:
 		unload();
 		this->glsl_path = glsl_path;
 		
+		dummy_vbo.setVertexData(nullptr, 3, 1, GL_STATIC_DRAW);
+
 		if (ofFile::doesFileExist(glsl_path) == false)
-			return;
+			return false;
 		
 		ofBuffer buf = ofBufferFromFile(glsl_path);
 		
@@ -45,7 +47,16 @@ public:
 				
 				code += "#version " + ofToString(version) + "\n";
 				code += "#line " + ofToString(line_no) + "\n";
-				code += "#extension GL_EXT_gpu_shader4 : require\n"; // for gl_VertexID
+
+				if (tag == "vertex")
+				{
+					code += "#extension GL_EXT_gpu_shader4 : require\n"; // for gl_VertexID
+				}
+
+				if (tag == "geometry")
+				{
+					code += "#extension GL_EXT_geometry_shader4 : enable\n"; // for geometry shader
+				}
 			}
 			else
 			{
@@ -81,14 +92,24 @@ public:
 	{
 		if (status && alpha > 0)
 		{
-			begin();
-			setUniform1f("Time", ofGetElapsedTimef());
-			setUniform1f("Alpha", alpha);
-			glDrawArrays(mode, 0, count);
-			end();
+			ofxShaderRunner::begin();
+			dummy_vbo.draw(mode, 0, count);
+			ofxShaderRunner::end();
 		}
 	}
 	
+	void begin()
+	{
+		ofShader::begin();
+		setUniform1f("Time", ofGetElapsedTimef());
+		setUniform1f("Alpha", alpha);
+	}
+
+	void end()
+	{
+		ofShader::end();
+	}
+
 	void setAlpha(float v) { alpha = v; }
 	float getAlpha() const { return alpha; }
 	
@@ -127,6 +148,8 @@ protected:
 	std::time_t last_modified_time;
 	
 	float alpha = 1;
+
+	ofVbo dummy_vbo;
 	
 	void setCode(const string& tag, const string& code)
 	{

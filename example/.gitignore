@@ -43,6 +43,7 @@ ipch/
 *.suo
 *.user
 *.sln.docstates
+*.opendb
 
 # Object files
 *.o
