@@ -15,8 +15,10 @@ public:
 	{
 		unload();
 		this->glsl_path = glsl_path;
-		
-		dummy_vbo.setVertexData(nullptr, 3, 1, GL_STATIC_DRAW);
+
+		// set dummy vertex
+		ofVec3f v(0);
+		vbo.setVertexData(&v, 1, GL_STATIC_DRAW);
 
 		if (ofFile::doesFileExist(glsl_path) == false)
 			return false;
@@ -93,7 +95,7 @@ public:
 		if (status && alpha > 0)
 		{
 			ofxShaderRunner::begin();
-			dummy_vbo.draw(mode, 0, count);
+			vbo.draw(mode, 0, count);
 			ofxShaderRunner::end();
 		}
 	}
@@ -129,6 +131,8 @@ public:
 		ofRemoveListener(ofEvents().update, this, &ofxShaderRunner::_update);
 	}
 	
+	ofVbo& getVbo() { return vbo; }
+
 protected:
 	
 	int version = 120;
@@ -149,7 +153,7 @@ protected:
 	
 	float alpha = 1;
 
-	ofVbo dummy_vbo;
+	ofVbo vbo;
 	
 	void setCode(const string& tag, const string& code)
 	{
@@ -184,6 +188,10 @@ protected:
 					else if (e[1] == "TRIANGLE_FAN")
 						mode = GL_TRIANGLE_FAN;
 					else throw;
+				}
+				else if (e[0] == "version")
+				{
+					version = std::stoi(e[1]);
 				}
 				else if (e[0] == "geom_count")
 				{
@@ -220,7 +228,7 @@ protected:
 	void _update(ofEventArgs &e)
 	{
 		auto D = ofGetElapsedTimeMillis() - last_check_time;
-		if (D > 100)
+		if (D > 300)
 		{
 			last_check_time = ofGetElapsedTimeMillis();
 			
