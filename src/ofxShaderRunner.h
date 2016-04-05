@@ -54,10 +54,13 @@ public:
 				{
 					code += "#extension GL_EXT_gpu_shader4 : require\n"; // for gl_VertexID
 				}
-
-				if (tag == "geometry")
+				else if (tag == "geometry")
 				{
 					code += "#extension GL_EXT_geometry_shader4 : enable\n"; // for geometry shader
+				}
+				else if (tag == "compute")
+				{
+					code += "#extension GL_ARB_compute_shader : enable\n";
 				}
 			}
 			else
@@ -104,6 +107,7 @@ public:
 	{
 		ofShader::begin();
 		setUniform1f("Time", ofGetElapsedTimef());
+		setUniform1f("TimeInc", ofGetLastFrameTime());
 		setUniform1f("Alpha", alpha);
 	}
 
@@ -221,6 +225,10 @@ protected:
 		{
 			setupShaderFromSource(GL_GEOMETRY_SHADER, code);
 		}
+		else if (tag == "compute")
+		{
+			setupShaderFromSource(GL_COMPUTE_SHADER, code);
+		}
 		
 		codes[tag] = code;
 	}
@@ -239,4 +247,39 @@ protected:
 			}
 		}
 	}
+
+public:
+
+	template <typename T>
+	struct PingPong {
+		T buffer[2];
+
+		T* front;
+		T* back;
+
+		std::function<void(T& front, T& back)> update;
+
+		PingPong()
+			: front(&buffer[0])
+			, back(&buffer[1])
+		{}
+
+		void setup(
+			std::function<void(T& buf)> init_fn,
+			std::function<void(T& front, T& back)> update_fn)
+		{
+			for (int i = 0; i < 2; i++)
+				init_fn(buffer[i]);
+
+			update_fn(*front, *back);
+
+			update = update_fn;
+		}
+
+		void swap()
+		{
+			std::swap(front, back);
+			update(*front, *back);
+		}
+	};
 };
