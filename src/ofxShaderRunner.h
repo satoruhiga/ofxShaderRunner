@@ -80,6 +80,8 @@ public:
 		ofShader::setGeometryInputType(mode);
 		ofShader::setGeometryOutputType(geom_mode);
 		
+		bindDefaults();
+
 		auto rc = linkProgram();
 		glGetProgramiv(getProgram(), GL_LINK_STATUS, &status);
 		
