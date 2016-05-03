@@ -52,15 +52,20 @@ public:
 
 				if (tag == "vertex")
 				{
-					code += "#extension GL_EXT_gpu_shader4 : require\n"; // for gl_VertexID
+					if (ofGLCheckExtension("GL_EXT_gpu_shader4"))
+						code += "#extension GL_EXT_gpu_shader4 : require\n"; // for gl_VertexID
 				}
 				else if (tag == "geometry")
 				{
-					code += "#extension GL_EXT_geometry_shader4 : enable\n"; // for geometry shader
+					if (ofGLCheckExtension("GL_EXT_geometry_shader4"))
+						code += "#extension GL_EXT_geometry_shader4 : enable\n"; // for geometry shader
+					else throw;
 				}
 				else if (tag == "compute")
 				{
-					code += "#extension GL_ARB_compute_shader : enable\n";
+					if (ofGLCheckExtension("GL_ARB_compute_shader"))
+						code += "#extension GL_ARB_compute_shader : enable\n";
+					else throw;
 				}
 			}
 			else
@@ -81,6 +86,8 @@ public:
 		ofShader::setGeometryOutputType(geom_mode);
 		
 		bindDefaults();
+		
+		GLuint clearErrors = glGetError();
 
 		auto rc = linkProgram();
 		glGetProgramiv(getProgram(), GL_LINK_STATUS, &status);
