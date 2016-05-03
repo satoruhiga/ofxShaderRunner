@@ -6,12 +6,27 @@ class ofxShaderRunner : public ofShader
 {
 public:
 	
+	struct Arguments {
+		string vertex;
+		string fragment;
+		string geometry;
+		string compute;
+		
+		Arguments()
+			: vertex("vertex")
+			, fragment("fragment")
+			, geometry("geometry")
+			, compute("compute")
+		{}
+	};
+	
 	~ofxShaderRunner()
 	{
 		disableAutoReload();
 	}
 	
-	bool load(const string& glsl_path)
+	bool load(const string& glsl_path,
+			  const Arguments& args = Arguments())
 	{
 		unload();
 		this->glsl_path = glsl_path;
@@ -22,6 +37,8 @@ public:
 
 		if (ofFile::doesFileExist(glsl_path) == false)
 			return false;
+		
+		this->args = args;
 		
 		ofBuffer buf = ofBufferFromFile(glsl_path);
 		
@@ -50,18 +67,18 @@ public:
 				code += "#version " + ofToString(version) + "\n";
 				code += "#line " + ofToString(line_no) + "\n";
 
-				if (tag == "vertex")
+				if (tag == args.vertex)
 				{
 					if (ofGLCheckExtension("GL_EXT_gpu_shader4"))
 						code += "#extension GL_EXT_gpu_shader4 : require\n"; // for gl_VertexID
 				}
-				else if (tag == "geometry")
+				else if (tag == args.geometry)
 				{
 					if (ofGLCheckExtension("GL_EXT_geometry_shader4"))
 						code += "#extension GL_EXT_geometry_shader4 : enable\n"; // for geometry shader
 					else throw;
 				}
-				else if (tag == "compute")
+				else if (tag == args.compute)
 				{
 					if (ofGLCheckExtension("GL_ARB_compute_shader"))
 						code += "#extension GL_ARB_compute_shader : enable\n";
@@ -98,6 +115,26 @@ public:
 		enableAutoReload();
 		
 		return rc;
+	}
+	
+	bool load(const string& glsl_path,
+			  const map<string, string>& map_args)
+	{
+		Arguments args;
+		
+		if (map_args.find("vertex") != map_args.end())
+			args.vertex = map_args.at("vertex");
+		
+		if (map_args.find("fragment") != map_args.end())
+			args.vertex = map_args.at("fragment");
+
+		if (map_args.find("geometry") != map_args.end())
+			args.vertex = map_args.at("geometry");
+
+		if (map_args.find("compute") != map_args.end())
+			args.vertex = map_args.at("compute");
+		
+		return load(glsl_path, args);
 	}
 	
 	void setVersion(int version) { this->version = version; }
@@ -168,6 +205,8 @@ protected:
 
 	ofVbo vbo;
 	
+	Arguments args;
+	
 	void setCode(const string& tag, const string& code)
 	{
 		if (tag == "settings")
@@ -222,19 +261,19 @@ protected:
 				}
 			}
 		}
-		else if (tag == "vertex")
+		else if (tag == args.vertex)
 		{
 			setupShaderFromSource(GL_VERTEX_SHADER, code);
 		}
-		else if (tag == "fragment")
+		else if (tag == args.fragment)
 		{
 			setupShaderFromSource(GL_FRAGMENT_SHADER, code);
 		}
-		else if (tag == "geometry")
+		else if (tag == args.geometry)
 		{
 			setupShaderFromSource(GL_GEOMETRY_SHADER, code);
 		}
-		else if (tag == "compute")
+		else if (tag == args.compute)
 		{
 			setupShaderFromSource(GL_COMPUTE_SHADER, code);
 		}
@@ -252,7 +291,7 @@ protected:
 			auto T = std::filesystem::last_write_time(ofToDataPath(glsl_path));
 			if (last_modified_time != T)
 			{
-				load(glsl_path);
+				load(glsl_path, args);
 			}
 		}
 	}
