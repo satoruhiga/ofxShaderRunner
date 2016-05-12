@@ -76,7 +76,6 @@ public:
 				{
 					if (ofGLCheckExtension("GL_EXT_geometry_shader4"))
 						code += "#extension GL_EXT_geometry_shader4 : enable\n"; // for geometry shader
-					else throw;
 				}
 				else if (tag == args.compute)
 				{
@@ -126,13 +125,13 @@ public:
 			args.vertex = map_args.at("vertex");
 		
 		if (map_args.find("fragment") != map_args.end())
-			args.vertex = map_args.at("fragment");
+			args.fragment = map_args.at("fragment");
 
 		if (map_args.find("geometry") != map_args.end())
-			args.vertex = map_args.at("geometry");
+			args.geometry = map_args.at("geometry");
 
 		if (map_args.find("compute") != map_args.end())
-			args.vertex = map_args.at("compute");
+			args.compute = map_args.at("compute");
 		
 		return load(glsl_path, args);
 	}
