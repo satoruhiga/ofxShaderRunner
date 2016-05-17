@@ -2,6 +2,12 @@
 
 #include "ofMain.h"
 
+#include <Poco/Process.h>
+#include <Poco/Pipe.h>
+#include <Poco/PipeStream.h>
+#include <Poco/StreamCopier.h>
+#include <Poco/Environment.h>
+
 class ofxShaderRunner : public ofShader
 {
 public:
@@ -150,6 +156,12 @@ public:
 	
 	void begin()
 	{
+		if (use_point_size)
+		{
+			state.s_GL_PROGRAM_POINT_SIZE = glIsEnabled(GL_PROGRAM_POINT_SIZE);
+			glEnable(GL_PROGRAM_POINT_SIZE);
+		}
+		
 		ofShader::begin();
 		setUniform1f("Time", ofGetElapsedTimef());
 		setUniform1f("TimeInc", ofGetLastFrameTime());
@@ -159,6 +171,9 @@ public:
 	void end()
 	{
 		ofShader::end();
+		
+		if (use_point_size && state.s_GL_PROGRAM_POINT_SIZE == false)
+			glDisable(GL_PROGRAM_POINT_SIZE);
 	}
 
 	void setAlpha(float v) { alpha = v; }
@@ -201,12 +216,17 @@ protected:
 	std::time_t last_modified_time;
 	
 	float alpha = 1;
+	bool use_point_size = false;
+	
+	struct EnableState {
+		bool s_GL_PROGRAM_POINT_SIZE;
+	} state;
 
 	ofVbo vbo;
 	
 	Arguments args;
 	
-	void setCode(const string& tag, const string& code)
+	void setCode(const string& tag, string code)
 	{
 		if (tag == "settings")
 		{
@@ -258,22 +278,30 @@ protected:
 						geom_mode = GL_TRIANGLE_STRIP;
 					else throw;
 				}
+				else if (e[0] == "use_point_size")
+				{
+					use_point_size = e[1] == "true" || e[1] == "1";
+				}
 			}
 		}
 		else if (tag == args.vertex)
 		{
+			if (glslify.isValid()) glslify.process(code, code);
 			setupShaderFromSource(GL_VERTEX_SHADER, code);
 		}
 		else if (tag == args.fragment)
 		{
+			if (glslify.isValid()) glslify.process(code, code);
 			setupShaderFromSource(GL_FRAGMENT_SHADER, code);
 		}
 		else if (tag == args.geometry)
 		{
+			if (glslify.isValid()) glslify.process(code, code);
 			setupShaderFromSource(GL_GEOMETRY_SHADER, code);
 		}
 		else if (tag == args.compute)
 		{
+			if (glslify.isValid()) glslify.process(code, code);
 			setupShaderFromSource(GL_COMPUTE_SHADER, code);
 		}
 		
@@ -329,4 +357,79 @@ public:
 			update(*front, *back);
 		}
 	};
+	
+public:
+	
+	struct Glslify {
+		
+		string node_modules_path;
+		vector<string> PATH;
+		
+		bool valid = false;
+		
+		Glslify() {
+			node_modules_path = ofToDataPath("node_modules", true);
+			appendPath("/usr/local/bin"); // linux like os
+		}
+		
+		string getPath() const {
+			return ofFilePath::join(node_modules_path, ".bin/glslify");
+		}
+		
+		void appendPath(const string& path) {
+			PATH.emplace_back(path);
+		}
+		
+		bool isValid() {
+			if (valid) return valid;
+			
+			string bin_path = getPath();
+			string PATH_str = Poco::Environment::get("PATH")
+				+ ":" + ofJoinString(PATH, ":");
+			
+			Poco::Pipe outPipe;
+			Poco::Process::Args args { "-v" };
+			Poco::Process::Env env { {"PATH", PATH_str} };
+			Poco::ProcessHandle ph = Poco::Process::launch(bin_path, args,
+														   0, &outPipe, 0, env);
+
+			valid = ph.wait() == 0;
+			return valid;
+		}
+		
+		bool process(const string& in_code, string& out_code) {
+			string PATH_str = ofJoinString(PATH, ":");
+			string bin_path = getPath();
+			string pwd = ofFilePath::getEnclosingDirectory(node_modules_path);
+			
+			Poco::Pipe inPipe;
+			Poco::Pipe outPipe;
+			Poco::Process::Args args {};
+			Poco::Process::Env env { {"PATH", PATH_str} };
+			Poco::ProcessHandle ph = Poco::Process::launch(bin_path, args, pwd,
+														   &inPipe, &outPipe, 0, env);
+			
+			Poco::PipeOutputStream ostr(inPipe);
+			Poco::PipeInputStream istr(outPipe);
+			
+			ostr << in_code;
+			ostr.close();
+			
+			stringstream ss;
+			Poco::StreamCopier::copyStream(istr, ss);
+			
+			int rc = ph.wait();
+			if (rc == 0)
+			{
+				out_code = ss.str();
+				return true;
+			}
+			else
+			{
+				out_code = in_code;
+				return false;
+			}
+		}
+		
+	} glslify;
 };

@@ -1,0 +1,16 @@
+vec2 grid(int x, int y)
+{
+	return vec2(mod(gl_VertexID, x) / x, float(gl_VertexID / x) / y);
+}
+
+vec3 grid(int x, int y, int z)
+{
+	int vid = gl_VertexID;
+	vec3 id;
+	float T = gl_VertexID / (x * y);
+	float TT = mod(gl_VertexID, x * y);
+	id.z = T / (z - 1);
+	id.y = floor(TT / y) / (y - 1);
+	id.x = (mod(TT, y)) / (x - 1);
+	return id;
+}
