@@ -386,14 +386,22 @@ public:
 			string bin_path = getPath();
 			string PATH_str = Poco::Environment::get("PATH")
 				+ ":" + ofJoinString(PATH, ":");
-			
-			Poco::Pipe outPipe;
-			Poco::Process::Args args { "-v" };
-			Poco::Process::Env env { {"PATH", PATH_str} };
-			Poco::ProcessHandle ph = Poco::Process::launch(bin_path, args,
-														   0, &outPipe, 0, env);
 
-			valid = ph.wait() == 0;
+			try
+			{
+				Poco::Pipe outPipe;
+				Poco::Process::Args args { "-v" };
+				Poco::Process::Env env { {"PATH", PATH_str} };
+				Poco::ProcessHandle ph = Poco::Process::launch(bin_path, args,
+															   0, &outPipe, 0, env);
+
+				valid = ph.wait() == 0;
+			}
+			catch (std::exception& e)
+			{
+				valid = false;
+			}
+			
 			return valid;
 		}
 		
