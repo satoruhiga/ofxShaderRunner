@@ -81,7 +81,7 @@ public:
 				else if (tag == args.geometry)
 				{
 					if (ofGLCheckExtension("GL_EXT_geometry_shader4"))
-						code += "#extension GL_EXT_geometry_shader4 : enable\n"; // for geometry shader
+						code += "#extension GL_EXT_geometry_shader4 : enable\n";
 				}
 				else if (tag == args.compute)
 				{
@@ -286,22 +286,18 @@ protected:
 		}
 		else if (tag == args.vertex)
 		{
-			if (glslify.isValid()) glslify.process(code, code);
 			setupShaderFromSource(GL_VERTEX_SHADER, code);
 		}
 		else if (tag == args.fragment)
 		{
-			if (glslify.isValid()) glslify.process(code, code);
 			setupShaderFromSource(GL_FRAGMENT_SHADER, code);
 		}
 		else if (tag == args.geometry)
 		{
-			if (glslify.isValid()) glslify.process(code, code);
 			setupShaderFromSource(GL_GEOMETRY_SHADER, code);
 		}
 		else if (tag == args.compute)
 		{
-			if (glslify.isValid()) glslify.process(code, code);
 			setupShaderFromSource(GL_COMPUTE_SHADER, code);
 		}
 		
@@ -357,87 +353,4 @@ public:
 			update(*front, *back);
 		}
 	};
-	
-public:
-	
-	struct Glslify {
-		
-		string node_modules_path;
-		vector<string> PATH;
-		
-		bool valid = false;
-		
-		Glslify() {
-			node_modules_path = ofToDataPath("node_modules", true);
-			appendPath("/usr/local/bin"); // linux like os
-		}
-		
-		string getPath() const {
-			return ofFilePath::join(node_modules_path, ".bin/glslify");
-		}
-		
-		void appendPath(const string& path) {
-			PATH.emplace_back(path);
-		}
-		
-		bool isValid() {
-			if (valid) return valid;
-			
-			string bin_path = getPath();
-			string PATH_str = Poco::Environment::get("PATH")
-				+ ":" + ofJoinString(PATH, ":");
-
-			try
-			{
-				Poco::Pipe outPipe;
-				Poco::Process::Args args { "-v" };
-				Poco::Process::Env env { {"PATH", PATH_str} };
-				Poco::ProcessHandle ph = Poco::Process::launch(bin_path, args,
-															   0, &outPipe, 0, env);
-
-				valid = ph.wait() == 0;
-			}
-			catch (std::exception& e)
-			{
-				valid = false;
-			}
-			
-			return valid;
-		}
-		
-		bool process(const string& in_code, string& out_code) {
-			string PATH_str = ofJoinString(PATH, ":");
-			string bin_path = getPath();
-			string pwd = ofFilePath::getEnclosingDirectory(node_modules_path);
-			
-			Poco::Pipe inPipe;
-			Poco::Pipe outPipe;
-			Poco::Process::Args args {};
-			Poco::Process::Env env { {"PATH", PATH_str} };
-			Poco::ProcessHandle ph = Poco::Process::launch(bin_path, args, pwd,
-														   &inPipe, &outPipe, 0, env);
-			
-			Poco::PipeOutputStream ostr(inPipe);
-			Poco::PipeInputStream istr(outPipe);
-			
-			ostr << in_code;
-			ostr.close();
-			
-			stringstream ss;
-			Poco::StreamCopier::copyStream(istr, ss);
-			
-			int rc = ph.wait();
-			if (rc == 0)
-			{
-				out_code = ss.str();
-				return true;
-			}
-			else
-			{
-				out_code = in_code;
-				return false;
-			}
-		}
-		
-	} glslify;
 };
